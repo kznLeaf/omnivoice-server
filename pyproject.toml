@@ -2,6 +2,23 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.uv]
+package = true
+override-dependencies = [
+    # Pin PyTorch for reproducible CI/Docker builds (omnivoice pulls torch transitively).
+    "torch==2.8.0",
+    "torchaudio==2.8.0",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchaudio = { index = "pytorch-cpu" }
+
 [project]
 name = "omnivoice-server"
 version = "0.2.4"

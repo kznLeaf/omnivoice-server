@@ -2,6 +2,9 @@
 FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04
 
 WORKDIR /home/ubuntu/app
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
 # Install Python and build dependencies
 ENV DEBIAN_FRONTEND=noninteractive
 RUN echo "Acquire::Retry \"3\";" > /etc/apt/apt.conf.d/99retry && \
@@ -34,19 +37,22 @@ ENV CUDA_HOME=/usr/local/cuda
 ENV HOME=/home/ubuntu
 ENV PATH=$CUDA_HOME/bin:$HOME/.local/bin:$PATH
 ENV LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
-ENV VIRTUAL_ENV=/home/ubuntu/venv
-
-# Create venv and install deps
-RUN python3 -m venv --system-site-packages $VIRTUAL_ENV
-ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
 #OMNIVOICE ENVs
 ENV OMNIVOICE_LOG_LEVEL=info
 
-RUN --mount=type=cache,target=/home/ubuntu/.cache/pip pip install \
+# Install CUDA PyTorch and omnivoice-server from GitHub
+ENV UV_PROJECT_ENVIRONMENT=/home/ubuntu/venv
+RUN --mount=type=cache,target=/home/ubuntu/.cache/uv,uid=1000,gid=1000 \
+    uv venv $UV_PROJECT_ENVIRONMENT && \
+    uv pip install \
     torchcodec==0.11 torch==2.8.0+cu128 torchaudio==2.8.0+cu128 \
     --index-url https://download.pytorch.org/whl/cu128 && \
-    pip install git+https://github.com/maemreyo/omnivoice-server.git
+    uv pip install git+https://github.com/maemreyo/omnivoice-server.git
+
+ENV VIRTUAL_ENV=/home/ubuntu/venv
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
 # Expose server port
 EXPOSE 8880

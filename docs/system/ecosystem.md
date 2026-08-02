@@ -269,7 +269,7 @@ Prerequisites:
 
 Installation:
   [ ] git clone https://github.com/<you>/omnivoice-server
-  [ ] pip install -e ".[dev]"
+  [ ] uv sync --extra dev
   [ ] omnivoice-server --help   (Checkpoint: should print usage without error)
 
 Development smoke test (no GPU needed):

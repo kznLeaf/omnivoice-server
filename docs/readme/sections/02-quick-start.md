@@ -32,21 +32,31 @@ pip install git+https://github.com/maemreyo/omnivoice-server.git
 # Option 4: Clone and install locally for development
 git clone https://github.com/maemreyo/omnivoice-server.git
 cd omnivoice-server
-pip install -e .
+uv sync --extra dev
 ```
 
 ### Start the Server
 
+**Local development** (after `uv sync`):
+
 ```bash
-# Basic usage (downloads model on first run)
+uv run omnivoice-server
+
+# With custom settings
+uv run omnivoice-server --host 0.0.0.0 --port 8880 --device cuda
+
+# With authentication
+export OMNIVOICE_API_KEY="your-secret-key"
+uv run omnivoice-server
+```
+
+**PyPI / global install** (Options 1–3):
+
+```bash
 omnivoice-server
 
 # With custom settings
 omnivoice-server --host 0.0.0.0 --port 8880 --device cuda
-
-# With authentication
-export OMNIVOICE_API_KEY="your-secret-key"
-omnivoice-server
 ```
 
 The server will start at `http://127.0.0.1:8880` by default.

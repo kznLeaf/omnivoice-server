@@ -1,5 +1,7 @@
 # Multi-stage build for omnivoice-server
-FROM python:3.10-slim AS builder
+FROM python:3.12-slim AS builder
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /build
 
@@ -8,18 +10,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+
 # Copy project files
-COPY pyproject.toml README.md ./
+COPY pyproject.toml uv.lock README.md ./
 COPY omnivoice_server ./omnivoice_server
 
-# Install PyTorch CPU (smaller image, works everywhere)
-RUN pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-
-# Install the package
-RUN pip install --no-cache-dir .
+# Install dependencies (PyTorch CPU via uv index config in pyproject.toml)
+RUN uv sync --frozen --no-dev
 
 # Runtime stage
-FROM python:3.10-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -29,9 +30,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
-COPY --from=builder /usr/local/bin/omnivoice-server /usr/local/bin/omnivoice-server
+ENV VIRTUAL_ENV=/build/.venv
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+
+# Copy virtual environment from builder
+COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
 # Create profile directory
 RUN mkdir -p /app/profiles
