@@ -120,6 +120,7 @@ FastAPI (1 uvicorn worker)
 ```python
 # app.py lines 99–114
 if cfg.api_key:
+
     @app.middleware("http")
     async def auth_middleware(request: Request, call_next):
         if request.url.path in ("/health", "/metrics", "/v1/models"):
@@ -489,7 +490,7 @@ When no voice is defined for a speaker (neither in the segment nor any prior app
 # config.py
 default_voice: str = Field(
     default="male, middle-aged, moderate pitch, neutral accent",
-    description="Default voice description used when no voice is specified"
+    description="Default voice description used when no voice is specified",
 )
 ```
 
@@ -498,10 +499,10 @@ default_voice: str = Field(
 ### 5.9 Validation Limits
 
 ```python
-MAX_SCRIPT_SEGMENTS = 100        # Maximum segments per request
-MAX_TOTAL_INPUT_CHARS = 50_000   # Total text across all segments
-MAX_UNIQUE_SPEAKERS = 10         # Maximum distinct speakers
-MAX_SEGMENT_CHARS = 10_000       # Per-segment text limit
+MAX_SCRIPT_SEGMENTS = 100  # Maximum segments per request
+MAX_TOTAL_INPUT_CHARS = 50_000  # Total text across all segments
+MAX_UNIQUE_SPEAKERS = 10  # Maximum distinct speakers
+MAX_SEGMENT_CHARS = 10_000  # Per-segment text limit
 ```
 
 These are hardcoded constants (not in `Settings`) because they are API contract safety rails, not operational tuning parameters — consistent with how `SpeechRequest.input` uses hardcoded `max_length=10_000`.
@@ -538,8 +539,8 @@ class ScriptOrchestrator:
         inference_svc: InferenceService,
         profile_svc: ProfileService,
         script_semaphore: asyncio.Semaphore,  # Dedicated, not shared with speech
-    ) -> None:
-        ...
+    ) -> None: ...
+
 
 # app.py wiring
 script_semaphore = asyncio.Semaphore(1)  # 1 concurrent script at a time
@@ -612,10 +613,7 @@ async def synthesize_script(self, req: ScriptRequest) -> ScriptResult:
 class ScriptOrchestrator:
     """Orchestrates multi-speaker synthesis."""
 
-    async def synthesize_script(
-        self,
-        req: ScriptRequest
-    ) -> ScriptResult:
+    async def synthesize_script(self, req: ScriptRequest) -> ScriptResult:
         # 1. Build speaker→voice mapping (upfront validation)
         # 2. Acquire script_semaphore (non-blocking, 503 if contended)
         # 3. Synthesize segments sequentially (with total timeout)
@@ -629,6 +627,7 @@ def make_silence_tensor(duration_s: float, sample_rate: int = 24000) -> torch.Te
     """Create a silence tensor of given duration."""
     pass
 
+
 def mix_to_single_track(
     segments: list[tuple[str, torch.Tensor]],  # (speaker, audio)
     pause_s: float,
@@ -636,6 +635,7 @@ def mix_to_single_track(
     """Concatenate segments with speaker-change pauses.
     Returns (mixed_audio, per_segment_timestamps)."""
     pass
+
 
 def group_by_speaker(
     segments: list[tuple[str, torch.Tensor]],
@@ -648,8 +648,7 @@ def group_by_speaker(
 ```python
 @router.post("/audio/script")
 async def create_script(
-    body: ScriptRequest,
-    orchestrator: ScriptOrchestrator = Depends(...)
+    body: ScriptRequest, orchestrator: ScriptOrchestrator = Depends(...)
 ) -> Response:
     # Validate → Orchestrate → Return
     pass
@@ -741,7 +740,9 @@ This limit is estimated upfront (pessimistically, using char count / average spe
 ```python
 estimated_duration_s = sum(len(seg.text) for seg in req.script) / 15.0
 if estimated_duration_s > MAX_TOTAL_AUDIO_DURATION_S:
-    raise HTTPException(422, f"Estimated audio duration {estimated_duration_s:.0f}s exceeds limit 600s")
+    raise HTTPException(
+        422, f"Estimated audio duration {estimated_duration_s:.0f}s exceeds limit 600s"
+    )
 ```
 
 Actual memory at that limit:

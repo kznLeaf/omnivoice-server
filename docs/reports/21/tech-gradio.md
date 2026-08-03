@@ -79,23 +79,22 @@ Gradio Application
 ```python
 import gradio as gr
 
+
 def tts_demo(text, voice_preset, speed):
     # Call OmniVoice-server API
     audio = generate_speech(text, voice_preset, speed)
     return audio
 
+
 demo = gr.Interface(
     fn=tts_demo,
     inputs=[
         gr.Textbox(label="Text to synthesize"),
-        gr.Dropdown(
-            choices=["ash", "alloy", "nova", "onyx", "shimmer"],
-            label="Voice"
-        ),
-        gr.Slider(minimum=0.25, maximum=4.0, value=1.0, label="Speed")
+        gr.Dropdown(choices=["ash", "alloy", "nova", "onyx", "shimmer"], label="Voice"),
+        gr.Slider(minimum=0.25, maximum=4.0, value=1.0, label="Speed"),
     ],
     outputs=gr.Audio(label="Generated Speech"),
-    title="OmniVoice TTS Demo"
+    title="OmniVoice TTS Demo",
 )
 
 demo.launch()
@@ -156,17 +155,14 @@ Gradio supports streaming audio, suitable for real-time TTS:
 ```python
 import gradio as gr
 
+
 def stream_tts(text):
     # Generator function for streaming
     for audio_chunk in generate_audio_streaming(text):
         yield audio_chunk
 
-demo = gr.Interface(
-    fn=stream_tts,
-    inputs=gr.Textbox(),
-    outputs=gr.Audio(streaming=True),
-    live=True
-)
+
+demo = gr.Interface(fn=stream_tts, inputs=gr.Textbox(), outputs=gr.Audio(streaming=True), live=True)
 ```
 
 ### Relevance to OmniVoice-server
@@ -194,12 +190,14 @@ You can build a quick Gradio interface to test OmniVoice-server instead of Open 
 import gradio as gr
 import requests
 
+
 def test_omnivoice_server(text, voice):
     response = requests.post(
         "http://localhost:8880/v1/audio/speech",
-        json={"model": "omnivoice", "input": text, "voice": voice}
+        json={"model": "omnivoice", "input": text, "voice": voice},
     )
     return response.content
+
 
 # Quick debugging tool for issue #21
 ```
@@ -242,16 +240,18 @@ Create Gradio test harness to isolate the issue:
 import gradio as gr
 import requests
 
+
 def test_voice_consistency(text, voice, num_samples=3):
     """Generate multiple samples to test consistency"""
     audios = []
     for i in range(num_samples):
         response = requests.post(
             "http://localhost:8880/v1/audio/speech",
-            json={"model": "omnivoice", "input": text, "voice": voice}
+            json={"model": "omnivoice", "input": text, "voice": voice},
         )
         audios.append(response.content)
     return audios
+
 
 # Gradio UI to reproduce issue #21
 demo = gr.Interface(
@@ -259,10 +259,10 @@ demo = gr.Interface(
     inputs=[
         gr.Textbox(value="Hello world"),
         gr.Dropdown(["ash", "alloy", "auto"]),
-        gr.Slider(1, 5, value=3, step=1)
+        gr.Slider(1, 5, value=3, step=1),
     ],
     outputs=[gr.Audio() for _ in range(5)],
-    title="Voice Consistency Test"
+    title="Voice Consistency Test",
 )
 ```
 

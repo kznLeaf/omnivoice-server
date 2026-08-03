@@ -119,8 +119,8 @@ Behavior:
 ```python
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await load_model()          # Block until loaded
-    announce_ready()            # Then announce
+    await load_model()  # Block until loaded
+    announce_ready()  # Then announce
     yield
     await release_model()
 ```

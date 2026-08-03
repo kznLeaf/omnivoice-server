@@ -270,7 +270,7 @@ r = requests.post(
     stream=True,
 )
 
-sample_rate = int(r.headers["X-Audio-Sample-Rate"])   # 24000
+sample_rate = int(r.headers["X-Audio-Sample-Rate"])  # 24000
 stream = p.open(format=pyaudio.paInt16, channels=1, rate=sample_rate, output=True)
 
 for chunk in r.iter_content(chunk_size=4096):

@@ -98,15 +98,12 @@ config = {
     "conversation": {
         "style": "podcast",
         "language": "en",
-        "speakers": [
-            {"name": "Host", "voice": "ash"},
-            {"name": "Guest", "voice": "nova"}
-        ]
+        "speakers": [{"name": "Host", "voice": "ash"}, {"name": "Guest", "voice": "nova"}],
     },
     "tts": {
         "provider": "openai",  # Could be "omnivoice" if supported
-        "model": "tts-1"
-    }
+        "model": "tts-1",
+    },
 }
 ```
 

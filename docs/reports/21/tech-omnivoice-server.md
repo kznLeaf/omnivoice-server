@@ -105,6 +105,7 @@ POST /v1/audio/script
 ```python
 # File: omnivoice_server/services/inference.py
 
+
 async def synthesize(request: SpeechRequest) -> AudioOutput:
     voice_id = request.voice
 
@@ -112,27 +113,18 @@ async def synthesize(request: SpeechRequest) -> AudioOutput:
     if voice_id.startswith("clone:"):
         profile_id = voice_id[6:]  # Remove "clone:" prefix
         profile = await profile_service.get(profile_id)
-        return await model.clone(
-            text=request.input,
-            ref_audio=profile.ref_audio_path
-        )
+        return await model.clone(text=request.input, ref_audio=profile.ref_audio_path)
 
     # 2. Voice design mode
     elif "," in voice_id:
         # Parse "female, british accent, low pitch"
         attributes = parse_design_attributes(voice_id)
-        return await model.design(
-            text=request.input,
-            instruct=format_instruct(attributes)
-        )
+        return await model.design(text=request.input, instruct=format_instruct(attributes))
 
     # 3. OpenAI preset mapping
     elif voice_id in VOICE_PRESETS:
         preset = VOICE_PRESETS[voice_id]
-        return await model.design(
-            text=request.input,
-            instruct=preset.instruct
-        )
+        return await model.design(text=request.input, instruct=preset.instruct)
 
     else:
         raise ValueError(f"Unknown voice: {voice_id}")
@@ -335,17 +327,10 @@ curl -X POST http://localhost:8880/v1/audio/script \
 ```python
 from openai import OpenAI
 
-client = OpenAI(
-    api_key="dummy",
-    base_url="http://localhost:8880/v1"
-)
+client = OpenAI(api_key="dummy", base_url="http://localhost:8880/v1")
 
 # Test basic synthesis
-response = client.audio.speech.create(
-    model="omnivoice",
-    voice="ash",
-    input="Hello world"
-)
+response = client.audio.speech.create(model="omnivoice", voice="ash", input="Hello world")
 with open("test.mp3", "wb") as f:
     f.write(response.content)
 
@@ -354,7 +339,7 @@ response = client.audio.speech.create(
     model="omnivoice",
     voice="female, british accent",
     input="Custom voice design",
-    extra_body={"speed": 1.2, "guidance_scale": 3.0}
+    extra_body={"speed": 1.2, "guidance_scale": 3.0},
 )
 ```
 

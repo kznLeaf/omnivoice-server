@@ -67,8 +67,8 @@ OmniVoice TTS server is **fully functional** and produces **high-quality audio**
 Updated `omnivoice_server/config.py`:
 
 ```python
-device = "cpu"        # Changed from "auto" (MPS broken)
-num_step = 32         # Changed from 16 (upstream default)
+device = "cpu"  # Changed from "auto" (MPS broken)
+num_step = 32  # Changed from 16 (upstream default)
 ```
 
 ---

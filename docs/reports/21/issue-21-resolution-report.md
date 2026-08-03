@@ -62,7 +62,7 @@ Four separate sub-issues contributed to wrong gender output:
 if not voice_key_found:
     raise HTTPException(
         status_code=422,
-        detail=f"Unknown voice '{voice_name}'. Available: openai:ash, openai:alloy, ..."
+        detail=f"Unknown voice '{voice_name}'. Available: openai:ash, openai:alloy, ...",
     )
 ```
 
@@ -85,8 +85,8 @@ if resolved_speaker_mode != resolved_voice_mode:
     raise HTTPException(
         status_code=422,
         detail=f"Ambiguous: speaker='{speaker}' (mode={resolved_speaker_mode}) "
-              f"and voice='{voice}' (mode={resolved_voice_mode}) conflict. "
-              f"Use only one at a time."
+        f"and voice='{voice}' (mode={resolved_voice_mode}) conflict. "
+        f"Use only one at a time.",
     )
 ```
 

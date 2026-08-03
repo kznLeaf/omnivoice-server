@@ -346,12 +346,16 @@ async def _resolve_voices(segments, default_voice):
 
 ```python
 # In _resolve_synthesis_mode (speech.py)
-logger.info(f"Voice resolution: speaker={body.speaker}, voice={body.voice}, "
-            f"instructions={body.instructions}, mode={mode}, instruct={instruct}")
+logger.info(
+    f"Voice resolution: speaker={body.speaker}, voice={body.voice}, "
+    f"instructions={body.instructions}, mode={mode}, instruct={instruct}"
+)
 
 # In ScriptOrchestrator._resolve_voices (script.py)
-logger.info(f"Script voice resolution: speaker={speaker}, segment.voice={segment.voice}, "
-            f"default_voice={default_voice}, resolved={speaker_voices[speaker]}")
+logger.info(
+    f"Script voice resolution: speaker={speaker}, segment.voice={segment.voice}, "
+    f"default_voice={default_voice}, resolved={speaker_voices[speaker]}"
+)
 ```
 
 ### Add Response Headers for Debugging

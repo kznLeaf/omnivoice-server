@@ -70,6 +70,7 @@ On Windows, `torchcodec` requires FFmpeg built with **shared libraries** (DLLs),
 ```python
 # Must be called BEFORE import torchcodec (or before transformers pipeline loads)
 import os
+
 os.add_dll_directory(r"C:\path\to\ffmpeg\bin")
 ```
 
@@ -333,30 +334,31 @@ import platform
 import importlib.util
 from importlib.machinery import ModuleSpec
 
+
 def _disable_torchcodec_on_windows() -> None:
     """
     torchcodec Windows CUDA support requires conda + matching torch version.
-    
+
     APPROACH: We inject a fake/empty module into sys.modules with a proper __spec__
     to avoid ValueError from importlib.util.find_spec().
-    
+
     Why NOT sys.modules['torchcodec'] = None:
       - `import torchcodec` → raises ImportError ✅ (works)
       - `importlib.util.find_spec('torchcodec')` → raises ValueError ❌ (NOT None)
         because CPython: sys.modules[name] is None → tries None.__spec__ →
         AttributeError → re-raised as ValueError.
-      
+
     Why NOT types.ModuleType with __spec__ = None (previous approach):
       - types.ModuleType() initializes __spec__ to None by default.
       - Setting __spec__ = None explicitly is redundant AND misleading.
       - find_spec ALSO raises ValueError when sys.modules[name].__spec__ is None.
       - CPython: if sys.modules[name].__spec__ is None → raise ValueError.
-    
+
     SAFE APPROACH: inject fake module WITH a proper ModuleSpec so find_spec()
     returns a non-None spec (is_torchcodec_available returns True), but the fake
     module has no actual attributes, so torchcodec.decoders access raises
     AttributeError — which recent transformers versions catch gracefully.
-    
+
     ⚠️ IMPORTANT: this function must be called BEFORE transformers is first imported.
     After transformers is imported, is_torchcodec_available() has been cached by
     @lru_cache and cannot be changed by patching sys.modules.
@@ -368,6 +370,7 @@ def _disable_torchcodec_on_windows() -> None:
     # Test if the DLLs actually load
     try:
         import torchcodec  # noqa: F401
+
         return  # Works fine (e.g. properly set up conda env with correct torch version)
     except (RuntimeError, OSError):
         pass
@@ -382,6 +385,7 @@ def _disable_torchcodec_on_windows() -> None:
     fake_tc.__spec__ = ModuleSpec(name="torchcodec", loader=None)
     sys.modules["torchcodec"] = fake_tc
     import logging
+
     logging.getLogger(__name__).warning(
         "torchcodec is installed but failed to load FFmpeg DLLs on Windows. "
         "It has been disabled for this process. The Whisper ASR pipeline will "
@@ -391,6 +395,7 @@ def _disable_torchcodec_on_windows() -> None:
         "Provide ref_text manually for best performance, or fix your torchcodec "
         "installation (see docs/troubleshooting.md#windows-torchcodec)."
     )
+
 
 _disable_torchcodec_on_windows()
 ```
@@ -416,7 +421,7 @@ _disable_torchcodec_on_windows()
 ```python
 def load_asr_model(self, model_name: str = "openai/whisper-large-v3-turbo"):
     """Load the Whisper ASR model for auto-transcription.
-    
+
     Falls back gracefully if torchcodec cannot be loaded (common on Windows,
     or when torchcodec version is incompatible with the installed torch version).
     """
@@ -439,6 +444,7 @@ def load_asr_model(self, model_name: str = "openai/whisper-large-v3-turbo"):
             self._asr_pipe = None
             return
         raise  # Re-raise unrelated errors
+
 
 def transcribe(self, audio: tuple) -> str:
     if self._asr_pipe is None:
@@ -497,7 +503,7 @@ Or use pre-converted model directly from HuggingFace (e.g. `deepdml/faster-whisp
 ```python
 def load_asr_model(self, model_name: str = "large-v3-turbo"):
     from faster_whisper import WhisperModel
-    
+
     # ⚠️ [FOURTH REVIEW] model_name format for faster-whisper is DIFFERENT from transformers:
     # - transformers uses: "openai/whisper-large-v3-turbo" (HuggingFace repo ID)
     # - faster-whisper auto-download uses: "large-v3-turbo" (short size string)
@@ -506,11 +512,12 @@ def load_asr_model(self, model_name: str = "large-v3-turbo"):
     # a transformers-format model and fail. Use the ct2 format or size string.
     compute_type = "float16" if str(self.device).startswith("cuda") else "int8"
     self._asr_model = WhisperModel(
-        model_name,           # "large-v3-turbo" or "deepdml/faster-whisper-large-v3-turbo-ct2"
+        model_name,  # "large-v3-turbo" or "deepdml/faster-whisper-large-v3-turbo-ct2"
         device=str(self.device),
         compute_type=compute_type,
     )
     self._asr_pipe = self._asr_model  # keep attribute consistent
+
 
 def transcribe(self, audio: tuple) -> str:
     wav, sr = audio
@@ -518,7 +525,7 @@ def transcribe(self, audio: tuple) -> str:
     segments, _info = self._asr_model.transcribe(
         wav,
         beam_size=5,
-        language=None,   # auto-detect
+        language=None,  # auto-detect
     )
     return " ".join(segment.text for segment in segments).strip()
 ```
@@ -603,10 +610,12 @@ Update `docs/readme/sections/14-troubleshooting.md` with:
 # __spec__ is None. Use importlib.util.find_spec only BEFORE any module injection,
 # or use a try/except guard:
 import platform, importlib.metadata
+
 if platform.system() == "Windows":
     try:
         tc_ver = importlib.metadata.version("torchcodec")
         import torch, warnings
+
         torch_ver = torch.__version__
         warnings.warn(
             f"torchcodec {tc_ver} is installed on Windows with torch {torch_ver}. "

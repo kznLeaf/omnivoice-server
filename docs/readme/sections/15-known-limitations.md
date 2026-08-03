@@ -14,8 +14,8 @@ When using `stream=True` (server-only HTTP streaming transport), each sentence i
        json={
            "input": "Long text...",
            "stream": True,
-           "position_temperature": 0.0  # Deterministic voice rendering
-       }
+           "position_temperature": 0.0,  # Deterministic voice rendering
+       },
    ) as response:
        for chunk in response.iter_bytes():
            play_audio(chunk)
@@ -28,7 +28,7 @@ When using `stream=True` (server-only HTTP streaming transport), each sentence i
        response = httpx.post(
            "http://127.0.0.1:8880/v1/audio/speech/clone",
            data={"text": "Long text..."},
-           files={"ref_audio": f}
+           files={"ref_audio": f},
        )
    if response.status_code == 200:
        audio_bytes = response.content
@@ -36,10 +36,7 @@ When using `stream=True` (server-only HTTP streaming transport), each sentence i
 
 3. **Use explicit instructions for a stable voice character:**
    ```python
-   {
-       "instructions": "female,british accent",
-       "stream": True
-   }
+   {"instructions": "female,british accent", "stream": True}
    ```
 
 This limitation is inherent to the sentence-by-sentence streaming architecture and does not affect non-streaming synthesis.

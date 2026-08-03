@@ -7,11 +7,7 @@ import httpx
 
 response = httpx.post(
     "http://127.0.0.1:8880/v1/audio/speech",
-    json={
-        "model": "omnivoice",
-        "input": "Hello world!",
-        "response_format": "wav"
-    }
+    json={"model": "omnivoice", "input": "Hello world!", "response_format": "wav"},
 )
 
 with open("output.wav", "wb") as f:
@@ -28,8 +24,8 @@ response = httpx.post(
     json={
         "model": "omnivoice",
         "input": "This voice has specific attributes.",
-        "instructions": "female,british accent,young adult,high pitch"
-    }
+        "instructions": "female,british accent,young adult,high pitch",
+    },
 )
 ```
 
@@ -78,11 +74,8 @@ Preset mapping table:
 with open("reference.wav", "rb") as f:
     response = httpx.post(
         "http://127.0.0.1:8880/v1/voices/profiles",
-        data={
-            "profile_id": "my_voice",
-            "ref_text": "This is the reference text."
-        },
-        files={"ref_audio": f}
+        data={"profile_id": "my_voice", "ref_text": "This is the reference text."},
+        files={"ref_audio": f},
     )
 
 # Profiles are stored for management and inspection.
@@ -95,11 +88,8 @@ with open("reference.wav", "rb") as f:
 with open("reference.wav", "rb") as f:
     response = httpx.post(
         "http://127.0.0.1:8880/v1/audio/speech/clone",
-        data={
-            "text": "This is one-shot cloning.",
-            "ref_text": "Reference text."
-        },
-        files={"ref_audio": f}
+        data={"text": "This is one-shot cloning.", "ref_text": "Reference text."},
+        files={"ref_audio": f},
     )
 ```
 
@@ -111,11 +101,7 @@ Stream audio in real-time for lower latency:
 with httpx.stream(
     "POST",
     "http://127.0.0.1:8880/v1/audio/speech",
-    json={
-        "model": "omnivoice",
-        "input": "Long text to stream...",
-        "stream": True
-    }
+    json={"model": "omnivoice", "input": "Long text to stream...", "stream": True},
 ) as response:
     for chunk in response.iter_bytes():
         # Process PCM audio chunks

@@ -320,6 +320,7 @@ User reports: **"for clone voice mode it was OK to generate quite good consisten
 ```python
 # Bypass all integration layers
 from omnivoice import OmniVoice
+
 model = OmniVoice()
 audio = model.generate(text="Hello", instruct="male, american")
 # Expected: Works correctly (baseline)
@@ -337,6 +338,7 @@ curl -X POST http://localhost:8880/v1/audio/speech \
 ```python
 # Test Podcastfy → omnivoice-server
 from podcastfy import Podcastfy
+
 podcast = Podcastfy(tts_provider="omnivoice-server")
 podcast.generate(speakers=[{"voice": "clone:profile_id"}])
 # Expected: Identify if Podcastfy passes voice ID correctly

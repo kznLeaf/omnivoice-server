@@ -71,7 +71,7 @@ def voice_design():
     output_path.write_bytes(response.content)
     print(f"✓ Voice design saved to {output_path}")
     print(
-        f"  Note: Short aliases like 'british' are accepted but canonicalized to 'british accent'"
+        "  Note: Short aliases like 'british' are accepted but canonicalized to 'british accent'"
     )
 
 

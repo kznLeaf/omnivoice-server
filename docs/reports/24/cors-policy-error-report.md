@@ -45,6 +45,7 @@ When a web page at `http://localhost:5001` makes a `fetch()` request to `http://
 ```python
 # Lines 107-121: Only auth middleware exists
 if cfg.api_key:
+
     @app.middleware("http")
     async def auth_middleware(request: Request, call_next):
         # Skip auth for health, metrics, and model listing
@@ -72,10 +73,12 @@ All CLI args: `--host`, `--port`, `--api-key`, `--device`...
 ```python
 router = APIRouter()
 
+
 @router.get("/health")
 async def health(request: Request):
     """Readiness check. Returns 503 while model is loading, 200 when ready."""
     ...
+
 
 @router.get("/metrics")
 async def metrics(request: Request):
@@ -113,9 +116,10 @@ Add `CORSMiddleware` with permissive defaults for development.
 # app.py
 from fastapi.middleware.cors import CORSMiddleware
 
+
 def create_app(cfg: Settings) -> FastAPI:
     app = FastAPI(...)
-    
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -169,9 +173,10 @@ parser.add_argument(
 # app.py - Add middleware
 from fastapi.middleware.cors import CORSMiddleware
 
+
 def create_app(cfg: Settings) -> FastAPI:
     app = FastAPI(...)
-    
+
     # Add CORS middleware
     if cfg.cors_allow_origins:
         app.add_middleware(

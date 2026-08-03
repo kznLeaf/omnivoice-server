@@ -14,6 +14,7 @@ Upstream Discussion post template (after running):
     Title: "Benchmark results: Apple Silicon MPS performance"
     Body: paste contents of report.md
 """
+
 from __future__ import annotations
 
 import argparse
@@ -56,6 +57,7 @@ SAMPLE_RATE = 24_000
 
 # ── Result dataclass ──────────────────────────────────────────────────────────
 
+
 @dataclass
 class RunResult:
     device: str
@@ -74,21 +76,23 @@ class RunResult:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--device", default="mps",
-                        choices=["mps", "cpu", "cuda"],
-                        help="Inference device")
-    parser.add_argument("--num-step", type=int, default=16,
-                        help="Diffusion steps")
-    parser.add_argument("--runs", type=int, default=100,
-                        help="Iterations per test case (for memory leak detection)")
-    parser.add_argument("--warmup", type=int, default=1,
-                        help="Warm-up runs (not counted)")
-    parser.add_argument("--cases", nargs="+", default=list(TEST_CASES.keys()),
-                        help="Test cases to run")
-    parser.add_argument("--output-dir", default="benchmarks/results",
-                        help="Directory for CSV and report outputs")
+    parser.add_argument(
+        "--device", default="mps", choices=["mps", "cpu", "cuda"], help="Inference device"
+    )
+    parser.add_argument("--num-step", type=int, default=16, help="Diffusion steps")
+    parser.add_argument(
+        "--runs", type=int, default=100, help="Iterations per test case (for memory leak detection)"
+    )
+    parser.add_argument("--warmup", type=int, default=1, help="Warm-up runs (not counted)")
+    parser.add_argument(
+        "--cases", nargs="+", default=list(TEST_CASES.keys()), help="Test cases to run"
+    )
+    parser.add_argument(
+        "--output-dir", default="benchmarks/results", help="Directory for CSV and report outputs"
+    )
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -96,6 +100,7 @@ def main() -> None:
 
     import psutil
     import torch
+
     from omnivoice import OmniVoice
 
     # Load model
@@ -196,8 +201,10 @@ def main() -> None:
             all_results.append(result)
 
             if i % 10 == 0:
-                status = f"run {i:3d}: lat={latency_ms:.0f}ms  rtf={rtf:.3f}  " \
-                         f"ram_Δ={result.ram_delta_mb:+.1f}MB  ram={ram_after:.0f}MB"
+                status = (
+                    f"run {i:3d}: lat={latency_ms:.0f}ms  rtf={rtf:.3f}  "
+                    f"ram_Δ={result.ram_delta_mb:+.1f}MB  ram={ram_after:.0f}MB"
+                )
                 if error:
                     status += f"  ERR={error[:40]}"
                 print(f"  {status}")
@@ -229,8 +236,7 @@ def _write_report(results: list[RunResult], path: Path, args) -> None:
 
     lines = [
         "# OmniVoice Benchmark Results\n\n",
-        f"Device: `{args.device}` | Steps: `{args.num_step}` | "
-        f"Runs per case: `{args.runs}`\n\n",
+        f"Device: `{args.device}` | Steps: `{args.num_step}` | Runs per case: `{args.runs}`\n\n",
         "## Latency & RTF\n\n",
         "| Device | Steps | Test Case | Mean (ms) | p95 (ms) | Mean RTF | Errors |\n",
         "|--------|-------|-----------|-----------|----------|----------|--------|\n",
@@ -239,8 +245,7 @@ def _write_report(results: list[RunResult], path: Path, args) -> None:
     for (device, steps, case), rs in sorted(groups.items()):
         lats = [r.latency_ms for r in rs]
         rtfs = [r.rtf for r in rs if r.rtf > 0]
-        errors = sum(1 for r in results
-                     if r.test_case == case and r.error is not None)
+        errors = sum(1 for r in results if r.test_case == case and r.error is not None)
         p95 = sorted(lats)[int(len(lats) * 0.95)] if lats else 0
         mean_lat = statistics.mean(lats) if lats else 0
         mean_rtf = statistics.mean(rtfs) if rtfs else 0
@@ -262,10 +267,7 @@ def _write_report(results: list[RunResult], path: Path, args) -> None:
         final = rs[-1].ram_after_mb
         delta = final - initial
         leak = "⚠️ YES" if delta > 200 else "✅ NO"
-        lines.append(
-            f"| {case} | {initial:.0f} | {final:.0f} | "
-            f"{delta:+.0f} | {leak} |\n"
-        )
+        lines.append(f"| {case} | {initial:.0f} | {final:.0f} | {delta:+.0f} | {leak} |\n")
 
     lines += [
         "\n## Interpretation\n\n",

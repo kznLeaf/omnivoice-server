@@ -23,8 +23,8 @@
 
 ```python
 # omnivoice_server/config.py
-device = "cpu"        # Changed from "auto" due to MPS bug
-num_step = 32         # Upstream recommended (not 16)
+device = "cpu"  # Changed from "auto" due to MPS bug
+num_step = 32  # Upstream recommended (not 16)
 ```
 
 ## Sample Audio

@@ -49,7 +49,9 @@ else:
 
 ```python
 # _build_synthesis_request — redundant second lookup
-ref_audio_path = await self._profiles.get_ref_audio_path(profile_id)  # <-- already done in _resolve_voices
+ref_audio_path = await self._profiles.get_ref_audio_path(
+    profile_id
+)  # <-- already done in _resolve_voices
 ```
 
 **Fix**: The upfront resolution should return a map of `speaker → SynthesisRequest` (or `speaker → ref_audio_path`), not just `speaker → voice_string`. Pass the resolved path through, not the raw voice string.
@@ -117,10 +119,10 @@ Note: `asyncio.Semaphore.locked()` and `asyncio.Lock.locked()` are non-blocking 
 ```python
 @dataclass
 class _ScriptAdapterRequest:
-    segments: list       # untyped
+    segments: list  # untyped
     default_voice: str | None
     speed: float
-    on_error: str        # no Literal type
+    on_error: str  # no Literal type
     insert_pause_ms: int
 ```
 
@@ -154,7 +156,7 @@ Catching an exception and immediately re-raising it is a no-op — the exception
 **File**: `routers/script.py`, line 1312
 
 ```python
-insert_pause_ms=int(body.pause_between_speakers * 1000)
+insert_pause_ms = int(body.pause_between_speakers * 1000)
 ```
 
 This converts float seconds → int milliseconds → float seconds later (`req.insert_pause_ms / 1000.0`). For audio, ms precision is fine, but the integer representation is an unnecessary intermediary. Passing the float directly and naming it `pause_s` (as the audio utilities already expect) would be cleaner and remove the back-conversion in the memory budget estimator.
@@ -250,7 +252,7 @@ OmniVoice supports `[laughter]`, `[sigh]`, `[question-en]` etc. The server could
 
 ```python
 def enrich_text(text: str) -> str:
-    if re.search(r'\bhaha\b|lol|heh', text, re.I):
+    if re.search(r"\bhaha\b|lol|heh", text, re.I):
         text = text + " [laughter]"
     if text.endswith("..."):
         text = text.replace("...", "... [sigh]")
@@ -283,11 +285,11 @@ Fixed `pause_between_speakers=0.5s` for all speaker changes produces robotic tim
 ```python
 def infer_pause(prev_text: str, pause_base: float) -> float:
     if prev_text.rstrip().endswith("?"):
-        return pause_base * 0.7   # quick response to a question
+        return pause_base * 0.7  # quick response to a question
     if prev_text.rstrip().endswith("..."):
-        return pause_base * 1.8   # hesitation, longer gap
+        return pause_base * 1.8  # hesitation, longer gap
     if prev_text.rstrip().endswith("!"):
-        return pause_base * 0.5   # excited, fast reply
+        return pause_base * 0.5  # excited, fast reply
     return pause_base
 ```
 

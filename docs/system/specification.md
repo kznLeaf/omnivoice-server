@@ -84,8 +84,8 @@ import torch
 
 model = OmniVoice.from_pretrained(
     "k2-fsa/OmniVoice",
-    device_map="mps",       # "cuda:0" | "mps" | "cpu"
-    dtype=torch.float16,    # float16 cho mps/cuda; float32 cho cpu
+    device_map="mps",  # "cuda:0" | "mps" | "cpu"
+    dtype=torch.float16,  # float16 cho mps/cuda; float32 cho cpu
 )
 
 # Return type: list[torch.Tensor]
@@ -104,8 +104,8 @@ audio = model.generate(
 # --- Voice cloning ---
 audio = model.generate(
     text="Hello world",
-    ref_audio="path/to/ref.wav",   # str path, không phải bytes
-    ref_text="Transcript",          # optional; Whisper tự transcribe nếu bỏ
+    ref_audio="path/to/ref.wav",  # str path, không phải bytes
+    ref_text="Transcript",  # optional; Whisper tự transcribe nếu bỏ
 )
 
 # --- Speed control ---
@@ -127,11 +127,13 @@ audio = model.generate(text="Hello", num_step=32)  # default 32 (upstream defaul
 import io
 import torchaudio
 
+
 def tensor_to_wav_bytes(tensor: torch.Tensor, sample_rate: int = 24000) -> bytes:
     # tensor shape: (1, T), dtype float32
     buf = io.BytesIO()
-    torchaudio.save(buf, tensor.cpu(), sample_rate, format="wav",
-                    encoding="PCM_S", bits_per_sample=16)
+    torchaudio.save(
+        buf, tensor.cpu(), sample_rate, format="wav", encoding="PCM_S", bits_per_sample=16
+    )
     buf.seek(0)
     return buf.read()
 ```
@@ -310,6 +312,7 @@ testpaths = ["tests"]
 Server configuration.
 Priority: CLI flags > env vars > defaults.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -372,8 +375,7 @@ class Settings(BaseSettings):
         ge=0.0,
         le=2.0,
         description=(
-            "Temperature for token sampling at each step. "
-            "0=greedy, higher=more randomness."
+            "Temperature for token sampling at each step. 0=greedy, higher=more randomness."
         ),
     )
 
@@ -426,6 +428,7 @@ class Settings(BaseSettings):
             return v
         try:
             import torch
+
             if torch.cuda.is_available():
                 return "cuda"
             if torch.backends.mps.is_available():
@@ -438,6 +441,7 @@ class Settings(BaseSettings):
     def torch_dtype(self):
         """Return appropriate torch dtype for device."""
         import torch
+
         if self.device in ("cuda", "mps"):
             return torch.float16
         return torch.float32
@@ -461,6 +465,7 @@ class Settings(BaseSettings):
 FastAPI application factory.
 All shared state lives on app.state — no module-level globals.
 """
+
 from __future__ import annotations
 
 import logging
@@ -488,15 +493,16 @@ async def lifespan(app: FastAPI):
     # ── Startup ─────────────────────────────────────────────────────────────
     t0 = time.monotonic()
     logger.info("omnivoice-server starting up...")
-    logger.info(f"  device={cfg.device}  num_step={cfg.num_step}  "
-                f"max_concurrent={cfg.max_concurrent}")
+    logger.info(
+        f"  device={cfg.device}  num_step={cfg.num_step}  max_concurrent={cfg.max_concurrent}"
+    )
 
     # 1. Ensure profile dir exists
     cfg.profile_dir.mkdir(parents=True, exist_ok=True)
 
     # 2. Load model (blocking — happens before server accepts requests)
     model_svc = ModelService(cfg)
-    await model_svc.load()                  # runs in executor internally
+    await model_svc.load()  # runs in executor internally
     app.state.model_svc = model_svc
 
     # 3. Inference service (thread pool + semaphore)
@@ -518,8 +524,7 @@ async def lifespan(app: FastAPI):
     app.state.start_time = time.monotonic()
 
     elapsed = time.monotonic() - t0
-    logger.info(f"Startup complete in {elapsed:.1f}s. "
-                f"Listening on http://{cfg.host}:{cfg.port}")
+    logger.info(f"Startup complete in {elapsed:.1f}s. Listening on http://{cfg.host}:{cfg.port}")
 
     yield
 
@@ -544,6 +549,7 @@ def create_app(cfg: Settings) -> FastAPI:
 
     # ── Auth middleware ──────────────────────────────────────────────────────
     if cfg.api_key:
+
         @app.middleware("http")
         async def auth_middleware(request: Request, call_next):
             # Skip auth for health check
@@ -570,6 +576,7 @@ def create_app(cfg: Settings) -> FastAPI:
 
 ```python
 from omnivoice_server.cli import main
+
 main()
 ```
 
@@ -586,6 +593,7 @@ main()
 Loads and holds the OmniVoice model singleton.
 Model is loaded once at startup; never reloaded during runtime.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -605,7 +613,7 @@ logger = logging.getLogger(__name__)
 class ModelService:
     def __init__(self, cfg: Settings) -> None:
         self.cfg = cfg
-        self._model = None          # type: ignore[assignment]
+        self._model = None  # type: ignore[assignment]
         self._loaded = False
 
     async def load(self) -> None:
@@ -661,6 +669,7 @@ class ModelService:
     def _dtype_candidates(self) -> list:
         """Return dtypes to try in order for this device."""
         import torch
+
         if self.cfg.device == "cuda":
             return [torch.float16, torch.bfloat16, torch.float32]
         if self.cfg.device == "mps":
@@ -671,6 +680,7 @@ class ModelService:
     @staticmethod
     def _has_nan(tensors: list) -> bool:
         import torch
+
         return any(torch.isnan(t).any() for t in tensors)
 
     @property
@@ -704,6 +714,7 @@ DESIGN NOTE — upstream isolation:
   OmniVoiceAdapter._build_kwargs(). When OmniVoice adds / renames params,
   only that one method changes — not SynthesisRequest, not the router.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -725,24 +736,24 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SynthesisRequest:
     text: str
-    mode: str                            # "auto" | "design" | "clone"
-    instruct: Optional[str] = None       # for mode="design"
-    ref_audio_path: Optional[str] = None # tmp path, for mode="clone"
-    ref_text: Optional[str] = None       # for mode="clone", optional
+    mode: str  # "auto" | "design" | "clone"
+    instruct: Optional[str] = None  # for mode="design"
+    ref_audio_path: Optional[str] = None  # tmp path, for mode="clone"
+    ref_text: Optional[str] = None  # for mode="clone", optional
     speed: float = 1.0
-    num_step: Optional[int] = None       # None → use server default
+    num_step: Optional[int] = None  # None → use server default
     # Advanced passthrough — None means "use upstream default"
     guidance_scale: Optional[float] = None
     denoise: Optional[bool] = None
-    t_shift: Optional[float] = None               # Noise schedule shift
+    t_shift: Optional[float] = None  # Noise schedule shift
     position_temperature: Optional[float] = None  # Mask-position temperature
-    class_temperature: Optional[float] = None     # Token sampling temperature
-    duration: Optional[float] = None              # Fixed output duration (seconds)
+    class_temperature: Optional[float] = None  # Token sampling temperature
+    duration: Optional[float] = None  # Fixed output duration (seconds)
 
 
 @dataclass
 class SynthesisResult:
-    tensors: list                        # list[torch.Tensor], each (1, T)
+    tensors: list  # list[torch.Tensor], each (1, T)
     duration_s: float
     latency_s: float
 
@@ -766,7 +777,9 @@ class OmniVoiceAdapter:
     def build_kwargs(self, req: SynthesisRequest, model) -> dict:
         """Return kwargs dict ready to pass to model.generate()."""
         num_step = req.num_step or self._cfg.num_step
-        guidance_scale = req.guidance_scale if req.guidance_scale is not None else self._cfg.guidance_scale
+        guidance_scale = (
+            req.guidance_scale if req.guidance_scale is not None else self._cfg.guidance_scale
+        )
         denoise = req.denoise if req.denoise is not None else self._cfg.denoise
         t_shift = req.t_shift if req.t_shift is not None else self._cfg.t_shift
         position_temperature = (
@@ -877,7 +890,7 @@ class InferenceService:
 
         logger.debug(
             f"Synthesized {duration_s:.2f}s audio in {latency_s:.2f}s "
-            f"(RTF={latency_s/duration_s:.3f})"
+            f"(RTF={latency_s / duration_s:.3f})"
         )
         return SynthesisResult(
             tensors=tensors,
@@ -917,6 +930,7 @@ Profile structure on disk:
       ref_audio.wav     ← reference audio
       meta.json         ← {"name": str, "ref_text": str|null, "created_at": str}
 """
+
 from __future__ import annotations
 
 import json
@@ -980,8 +994,7 @@ class ProfileService:
         profile_path = self._profile_path(profile_id)
         if profile_path.exists() and not overwrite:
             raise ProfileAlreadyExistsError(
-                f"Profile '{profile_id}' already exists. "
-                "Use overwrite=true to replace."
+                f"Profile '{profile_id}' already exists. Use overwrite=true to replace."
             )
 
         profile_path.mkdir(parents=True, exist_ok=True)
@@ -1038,6 +1051,7 @@ class ProfileService:
 """
 In-memory request metrics. Thread-safe with a lock.
 """
+
 from __future__ import annotations
 
 import threading
@@ -1100,6 +1114,7 @@ class MetricsService:
 Audio encoding helpers.
 All functions are pure (no side effects) and synchronous.
 """
+
 from __future__ import annotations
 
 import io
@@ -1132,7 +1147,7 @@ def tensor_to_wav_bytes(tensor: torch.Tensor) -> bytes:
         cpu_tensor,
         SAMPLE_RATE,
         format="wav",
-        encoding="PCM_S",      # signed integer PCM
+        encoding="PCM_S",  # signed integer PCM
         bits_per_sample=16,
     )
     buf.seek(0)
@@ -1173,14 +1188,13 @@ def read_upload_bounded(data: bytes, max_bytes: int, field_name: str = "ref_audi
     if len(data) > max_bytes:
         mb = len(data) / 1024 / 1024
         limit_mb = max_bytes / 1024 / 1024
-        raise ValueError(
-            f"{field_name} too large: {mb:.1f} MB (limit: {limit_mb:.0f} MB)"
-        )
+        raise ValueError(f"{field_name} too large: {mb:.1f} MB (limit: {limit_mb:.0f} MB)")
     return data
 
 
 import io
 import torchaudio
+
 
 def validate_audio_bytes(data: bytes, field_name: str = "ref_audio") -> None:
     """
@@ -1194,9 +1208,7 @@ def validate_audio_bytes(data: bytes, field_name: str = "ref_audio") -> None:
         if info.num_frames == 0:
             raise ValueError(f"{field_name}: audio file has 0 frames")
         if info.sample_rate < 8000:
-            raise ValueError(
-                f"{field_name}: sample rate {info.sample_rate}Hz too low (min 8000Hz)"
-            )
+            raise ValueError(f"{field_name}: sample rate {info.sample_rate}Hz too low (min 8000Hz)")
     except Exception as e:
         if isinstance(e, ValueError):
             raise
@@ -1228,6 +1240,7 @@ Goal: Split text into chunks that:
   2. Don't exceed max_chars
   3. Don't split in the middle of numbers, abbreviations, URLs
 """
+
 from __future__ import annotations
 
 import re
@@ -1235,19 +1248,19 @@ import re
 # Matches sentence-ending punctuation followed by whitespace + uppercase letter,
 # or end of string. Preserves decimals (3.14), versions (v1.2), domains (k2-fsa.org).
 _SENTENCE_END = re.compile(
-    r'(?<=[.!?])\s+(?=[A-Z\u4e00-\u9fff\u3040-\u30ff'   # English + CJK start
-    r'\u00C0-\u024F'    # Latin Extended-A/B (Vietnamese, French, German, etc.)
-    r'\u1E00-\u1EFF'    # Latin Extended Additional (full Vietnamese coverage)
-    r'])'
-    r'|(?<=[。！？])',                                        # CJK sentence end
+    r"(?<=[.!?])\s+(?=[A-Z\u4e00-\u9fff\u3040-\u30ff"  # English + CJK start
+    r"\u00C0-\u024F"  # Latin Extended-A/B (Vietnamese, French, German, etc.)
+    r"\u1E00-\u1EFF"  # Latin Extended Additional (full Vietnamese coverage)
+    r"])"
+    r"|(?<=[。！？])",  # CJK sentence end
 )
 
 # Patterns that look like sentence endings but aren't
 _FALSE_ENDS = re.compile(
-    r'\d+\.\d+'           # decimals: 3.14
-    r'|v\d+\.\d+'         # versions: v1.2.3
-    r'|[A-Z][a-z]{0,3}\.'  # abbreviations: Dr. Mr. etc.
-    r'|\w+\.\w{2,6}(?:/|\s|$)'  # URLs/domains
+    r"\d+\.\d+"  # decimals: 3.14
+    r"|v\d+\.\d+"  # versions: v1.2.3
+    r"|[A-Z][a-z]{0,3}\."  # abbreviations: Dr. Mr. etc.
+    r"|\w+\.\w{2,6}(?:/|\s|$)"  # URLs/domains
 )
 
 
@@ -1357,6 +1370,7 @@ def _split_at_words(text: str, max_chars: int) -> list[str]:
 /v1/audio/speech        — OpenAI-compatible TTS (auto, design, clone via profile)
 /v1/audio/speech/clone  — One-shot voice cloning (multipart upload)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -1381,6 +1395,7 @@ router = APIRouter()
 
 # ── Request / Response schemas ───────────────────────────────────────────────
 
+
 class SpeechRequest(BaseModel):
     """
     OpenAI TTS API compatible request body.
@@ -1390,6 +1405,7 @@ class SpeechRequest(BaseModel):
       stream:    bool   — enable sentence-level chunked streaming
       num_step:  int    — override server default diffusion steps
     """
+
     model: str = Field(
         default="omnivoice",
         description="Model name. Any value accepted; only 'omnivoice' is valid.",
@@ -1456,6 +1472,7 @@ def _get_cfg(request: Request):
 
 # ── Voice parsing ────────────────────────────────────────────────────────────
 
+
 def _parse_voice(
     voice_str: str,
     profile_svc: ProfileService,
@@ -1475,7 +1492,7 @@ def _parse_voice(
         return "auto", None, None, None
 
     if v.startswith("design:"):
-        instruct = v[len("design:"):].strip()
+        instruct = v[len("design:") :].strip()
         if not instruct:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -1484,7 +1501,7 @@ def _parse_voice(
         return "design", instruct, None, None
 
     if v.startswith("clone:"):
-        profile_id = v[len("clone:"):].strip()
+        profile_id = v[len("clone:") :].strip()
         if not profile_id:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -1498,7 +1515,7 @@ def _parse_voice(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Voice profile '{profile_id}' not found. "
-                       "Use POST /v1/voices/profiles to create it.",
+                "Use POST /v1/voices/profiles to create it.",
             )
 
     # Fallback: treat as voice design attributes (convenience shorthand)
@@ -1506,6 +1523,7 @@ def _parse_voice(
 
 
 # ── POST /v1/audio/speech ────────────────────────────────────────────────────
+
 
 @router.post(
     "/audio/speech",
@@ -1535,9 +1553,7 @@ async def create_speech(
     Compatible with OpenAI audio.speech.create() API.
     Supports auto voice, voice design, and saved voice profiles.
     """
-    mode, instruct, ref_audio_path, ref_text = _parse_voice(
-        body.voice, profile_svc
-    )
+    mode, instruct, ref_audio_path, ref_text = _parse_voice(body.voice, profile_svc)
 
     req = SynthesisRequest(
         text=body.input,
@@ -1583,6 +1599,7 @@ async def create_speech(
 
     if body.response_format == "pcm":
         from ..utils.audio import tensor_to_pcm16_bytes
+
         audio_bytes = b"".join(tensor_to_pcm16_bytes(t) for t in result.tensors)
         media_type = "audio/pcm"
     else:
@@ -1658,6 +1675,7 @@ async def _stream_sentences(
 
 # ── POST /v1/audio/speech/clone ──────────────────────────────────────────────
 
+
 @router.post(
     "/audio/speech/clone",
     response_class=Response,
@@ -1688,15 +1706,20 @@ async def create_speech_clone(
     """
     # Validate content type
     if ref_audio.content_type not in (
-        "audio/wav", "audio/wave", "audio/x-wav",
-        "audio/mp3", "audio/mpeg",
-        "audio/ogg", "audio/flac",
+        "audio/wav",
+        "audio/wave",
+        "audio/x-wav",
+        "audio/mp3",
+        "audio/mpeg",
+        "audio/ogg",
+        "audio/flac",
         None,  # some clients omit content-type
     ):
         logger.warning(f"Unexpected ref_audio content-type: {ref_audio.content_type}")
 
     # Write ref audio to temp file — OmniVoice requires a path, not bytes
     from ..utils.audio import read_upload_bounded
+
     raw = await ref_audio.read()
     try:
         audio_bytes = read_upload_bounded(raw, cfg.max_ref_audio_bytes)
@@ -1761,6 +1784,7 @@ async def create_speech_clone(
 /v1/voices/profiles           — manage cloning profiles
 /v1/voices/profiles/{id}      — get/patch/delete specific profile
 """
+
 from __future__ import annotations
 
 import logging
@@ -1792,6 +1816,7 @@ def _get_profiles(request: Request) -> ProfileService:
 
 
 # ── GET /v1/voices ───────────────────────────────────────────────────────────
+
 
 @router.get("/voices")
 async def list_voices(
@@ -1832,9 +1857,10 @@ async def list_voices(
 
 # ── POST /v1/voices/profiles ─────────────────────────────────────────────────
 
+
 @router.post("/voices/profiles", status_code=status.HTTP_201_CREATED)
 async def create_profile(
-    request: Request,                    # FIX: was missing — needed for cfg access
+    request: Request,  # FIX: was missing — needed for cfg access
     profile_id: str = Form(
         ...,
         pattern=r"^[a-zA-Z0-9_-]{1,64}$",
@@ -1851,7 +1877,7 @@ async def create_profile(
     """
     from ..utils.audio import read_upload_bounded, validate_audio_bytes
 
-    cfg = request.app.state.cfg   # FIX: was NameError previously
+    cfg = request.app.state.cfg  # FIX: was NameError previously
 
     raw = await ref_audio.read()
     try:
@@ -1881,6 +1907,7 @@ async def create_profile(
 
 # ── GET /v1/voices/profiles/{profile_id} ─────────────────────────────────────
 
+
 @router.get("/voices/profiles/{profile_id}")
 async def get_profile(
     profile_id: str,
@@ -1898,6 +1925,7 @@ async def get_profile(
 
 # ── DELETE /v1/voices/profiles/{profile_id} ──────────────────────────────────
 
+
 @router.delete("/voices/profiles/{profile_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_profile(
     profile_id: str,
@@ -1914,16 +1942,16 @@ async def delete_profile(
 
 # ── PATCH /v1/voices/profiles/{profile_id} ───────────────────────────────────
 
+
 @router.patch("/voices/profiles/{profile_id}", status_code=status.HTTP_200_OK)
 async def update_profile(
     profile_id: str,
-    request: Request,                    # FIX: needed for cfg.max_ref_audio_bytes
+    request: Request,  # FIX: needed for cfg.max_ref_audio_bytes
     ref_audio: Optional[UploadFile] = File(default=None),
     ref_text: Optional[str] = Form(default=None),
     profile_svc: ProfileService = Depends(_get_profiles),
 ):
-    """
-    """
+    """ """
     # Verify it exists first
     try:
         existing_path = profile_svc.get_ref_audio_path(profile_id)
@@ -1941,6 +1969,7 @@ async def update_profile(
 
     if ref_audio is not None:
         from ..utils.audio import read_upload_bounded, validate_audio_bytes
+
         cfg = request.app.state.cfg
         raw = await ref_audio.read()
         try:
@@ -2010,9 +2039,7 @@ async def metrics(request: Request):
     """Request metrics and current memory usage."""
     metrics_svc = request.app.state.metrics_svc
     snapshot = metrics_svc.snapshot()
-    snapshot["ram_mb"] = round(
-        psutil.Process().memory_info().rss / 1024 / 1024, 1
-    )
+    snapshot["ram_mb"] = round(psutil.Process().memory_info().rss / 1024 / 1024, 1)
     return snapshot
 ```
 
@@ -2039,6 +2066,7 @@ Upstream Discussion post template (after running):
     Title: "Benchmark results: Apple Silicon MPS performance"
     Body: paste contents of report.md
 """
+
 from __future__ import annotations
 
 import argparse
@@ -2084,6 +2112,7 @@ SAMPLE_RATE = 24_000
 
 # ── Result dataclass ──────────────────────────────────────────────────────────
 
+
 @dataclass
 class RunResult:
     device: str
@@ -2102,21 +2131,23 @@ class RunResult:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--device", default="mps",
-                        choices=["mps", "cpu", "cuda"],
-                        help="Inference device")
-    parser.add_argument("--num-step", type=int, default=16,
-                        help="Diffusion steps")
-    parser.add_argument("--runs", type=int, default=100,
-                        help="Iterations per test case (for memory leak detection)")
-    parser.add_argument("--warmup", type=int, default=1,
-                        help="Warm-up runs (not counted)")
-    parser.add_argument("--cases", nargs="+", default=list(TEST_CASES.keys()),
-                        help="Test cases to run")
-    parser.add_argument("--output-dir", default="benchmarks/results",
-                        help="Directory for CSV and report outputs")
+    parser.add_argument(
+        "--device", default="mps", choices=["mps", "cpu", "cuda"], help="Inference device"
+    )
+    parser.add_argument("--num-step", type=int, default=16, help="Diffusion steps")
+    parser.add_argument(
+        "--runs", type=int, default=100, help="Iterations per test case (for memory leak detection)"
+    )
+    parser.add_argument("--warmup", type=int, default=1, help="Warm-up runs (not counted)")
+    parser.add_argument(
+        "--cases", nargs="+", default=list(TEST_CASES.keys()), help="Test cases to run"
+    )
+    parser.add_argument(
+        "--output-dir", default="benchmarks/results", help="Directory for CSV and report outputs"
+    )
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -2224,8 +2255,10 @@ def main() -> None:
             all_results.append(result)
 
             if i % 10 == 0:
-                status = f"run {i:3d}: lat={latency_ms:.0f}ms  rtf={rtf:.3f}  " \
-                         f"ram_Δ={result.ram_delta_mb:+.1f}MB  ram={ram_after:.0f}MB"
+                status = (
+                    f"run {i:3d}: lat={latency_ms:.0f}ms  rtf={rtf:.3f}  "
+                    f"ram_Δ={result.ram_delta_mb:+.1f}MB  ram={ram_after:.0f}MB"
+                )
                 if error:
                     status += f"  ERR={error[:40]}"
                 print(f"  {status}")
@@ -2257,8 +2290,7 @@ def _write_report(results: list[RunResult], path: Path, args) -> None:
 
     lines = [
         "# OmniVoice Benchmark Results\n\n",
-        f"Device: `{args.device}` | Steps: `{args.num_step}` | "
-        f"Runs per case: `{args.runs}`\n\n",
+        f"Device: `{args.device}` | Steps: `{args.num_step}` | Runs per case: `{args.runs}`\n\n",
         "## Latency & RTF\n\n",
         "| Device | Steps | Test Case | Mean (ms) | p95 (ms) | Mean RTF | Errors |\n",
         "|--------|-------|-----------|-----------|----------|----------|--------|\n",
@@ -2267,8 +2299,7 @@ def _write_report(results: list[RunResult], path: Path, args) -> None:
     for (device, steps, case), rs in sorted(groups.items()):
         lats = [r.latency_ms for r in rs]
         rtfs = [r.rtf for r in rs if r.rtf > 0]
-        errors = sum(1 for r in results
-                     if r.test_case == case and r.error is not None)
+        errors = sum(1 for r in results if r.test_case == case and r.error is not None)
         p95 = sorted(lats)[int(len(lats) * 0.95)] if lats else 0
         mean_lat = statistics.mean(lats) if lats else 0
         mean_rtf = statistics.mean(rtfs) if rtfs else 0
@@ -2290,10 +2321,7 @@ def _write_report(results: list[RunResult], path: Path, args) -> None:
         final = rs[-1].ram_after_mb
         delta = final - initial
         leak = "⚠️ YES" if delta > 200 else "✅ NO"
-        lines.append(
-            f"| {case} | {initial:.0f} | {final:.0f} | "
-            f"{delta:+.0f} | {leak} |\n"
-        )
+        lines.append(f"| {case} | {initial:.0f} | {final:.0f} | {delta:+.0f} | {leak} |\n")
 
     lines += [
         "\n## Interpretation\n\n",
@@ -2321,6 +2349,7 @@ if __name__ == "__main__":
 Shared fixtures for all tests.
 The key trick: mock ModelService so tests don't need a GPU or real model.
 """
+
 from __future__ import annotations
 
 import io
@@ -2344,6 +2373,7 @@ def _make_silence_tensor(duration_s: float = 1.0) -> torch.Tensor:
 def _mock_synthesize(req):
     """Fake synthesis — returns 1s of silence immediately."""
     from omnivoice_server.services.inference import SynthesisResult
+
     tensor = _make_silence_tensor(1.0)
     return SynthesisResult(tensors=[tensor], duration_s=1.0, latency_s=0.05)
 
@@ -2368,13 +2398,13 @@ def client(settings, tmp_path):
 
     # Patch ModelService to skip actual model loading
     with patch("omnivoice_server.services.model.ModelService.load", new_callable=AsyncMock):
-        with patch("omnivoice_server.services.model.ModelService.is_loaded",
-                   new_callable=lambda: property(lambda self: True)):
+        with patch(
+            "omnivoice_server.services.model.ModelService.is_loaded",
+            new_callable=lambda: property(lambda self: True),
+        ):
             with TestClient(app) as c:
                 # Inject mock inference service
-                c.app.state.inference_svc.synthesize = AsyncMock(
-                    side_effect=_mock_synthesize
-                )
+                c.app.state.inference_svc.synthesize = AsyncMock(side_effect=_mock_synthesize)
                 yield c
 ```
 
@@ -2402,11 +2432,14 @@ def test_metrics_ok(client):
 
 ```python
 def test_speech_auto_returns_wav(client):
-    resp = client.post("/v1/audio/speech", json={
-        "model": "omnivoice",
-        "input": "Hello world",
-        "voice": "auto",
-    })
+    resp = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "omnivoice",
+            "input": "Hello world",
+            "voice": "auto",
+        },
+    )
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "audio/wav"
     # WAV magic bytes: RIFF
@@ -2414,44 +2447,59 @@ def test_speech_auto_returns_wav(client):
 
 
 def test_speech_design_voice(client):
-    resp = client.post("/v1/audio/speech", json={
-        "input": "Hello",
-        "voice": "design:female,british accent",
-    })
+    resp = client.post(
+        "/v1/audio/speech",
+        json={
+            "input": "Hello",
+            "voice": "design:female,british accent",
+        },
+    )
     assert resp.status_code == 200
 
 
 def test_speech_invalid_text_empty(client):
-    resp = client.post("/v1/audio/speech", json={
-        "input": "",
-        "voice": "auto",
-    })
+    resp = client.post(
+        "/v1/audio/speech",
+        json={
+            "input": "",
+            "voice": "auto",
+        },
+    )
     assert resp.status_code == 422
 
 
 def test_speech_clone_unknown_profile(client):
-    resp = client.post("/v1/audio/speech", json={
-        "input": "Hello",
-        "voice": "clone:nonexistent",
-    })
+    resp = client.post(
+        "/v1/audio/speech",
+        json={
+            "input": "Hello",
+            "voice": "clone:nonexistent",
+        },
+    )
     assert resp.status_code == 404
 
 
 def test_speech_openai_model_names_accepted(client):
     """tts-1 and tts-1-hd should be accepted for drop-in compatibility."""
     for model_name in ("tts-1", "tts-1-hd", "omnivoice"):
-        resp = client.post("/v1/audio/speech", json={
-            "model": model_name,
-            "input": "Hello",
-        })
+        resp = client.post(
+            "/v1/audio/speech",
+            json={
+                "model": model_name,
+                "input": "Hello",
+            },
+        )
         assert resp.status_code == 200, f"Failed for model={model_name}"
 
 
 def test_speech_pcm_format(client):
-    resp = client.post("/v1/audio/speech", json={
-        "input": "Hello",
-        "response_format": "pcm",
-    })
+    resp = client.post(
+        "/v1/audio/speech",
+        json={
+            "input": "Hello",
+            "response_format": "pcm",
+        },
+    )
     assert resp.status_code == 200
     assert "audio/pcm" in resp.headers["content-type"]
 ```
@@ -2461,15 +2509,21 @@ def test_speech_pcm_format(client):
 ```python
 import io
 
+
 def _make_wav_bytes() -> bytes:
     """Minimal valid WAV (44-byte header + 0 samples)."""
     import struct
+
     data_size = 0
     return (
-        b"RIFF" + struct.pack("<I", 36 + data_size) +
-        b"WAVE" + b"fmt " + struct.pack("<I", 16) +
-        struct.pack("<HHIIHH", 1, 1, 24000, 48000, 2, 16) +
-        b"data" + struct.pack("<I", data_size)
+        b"RIFF"
+        + struct.pack("<I", 36 + data_size)
+        + b"WAVE"
+        + b"fmt "
+        + struct.pack("<I", 16)
+        + struct.pack("<HHIIHH", 1, 1, 24000, 48000, 2, 16)
+        + b"data"
+        + struct.pack("<I", data_size)
     )
 
 
@@ -2501,12 +2555,17 @@ import io
 
 def _sample_audio() -> bytes:
     import struct
+
     data_size = 0
     return (
-        b"RIFF" + struct.pack("<I", 36 + data_size) +
-        b"WAVE" + b"fmt " + struct.pack("<I", 16) +
-        struct.pack("<HHIIHH", 1, 1, 24000, 48000, 2, 16) +
-        b"data" + struct.pack("<I", data_size)
+        b"RIFF"
+        + struct.pack("<I", 36 + data_size)
+        + b"WAVE"
+        + b"fmt "
+        + struct.pack("<I", 16)
+        + struct.pack("<HHIIHH", 1, 1, 24000, 48000, 2, 16)
+        + b"data"
+        + struct.pack("<I", data_size)
     )
 
 
@@ -2575,18 +2634,24 @@ def test_speech_with_saved_profile(client):
         data={"profile_id": "myvoice"},
         files={"ref_audio": ("ref.wav", io.BytesIO(audio), "audio/wav")},
     )
-    resp = client.post("/v1/audio/speech", json={
-        "input": "Hello with cloned voice",
-        "voice": "clone:myvoice",
-    })
+    resp = client.post(
+        "/v1/audio/speech",
+        json={
+            "input": "Hello with cloned voice",
+            "voice": "clone:myvoice",
+        },
+    )
     assert resp.status_code == 200
 
 
 def test_streaming_returns_pcm(client):
-    resp = client.post("/v1/audio/speech", json={
-        "input": "Hello world. This is sentence two.",
-        "stream": True,
-    })
+    resp = client.post(
+        "/v1/audio/speech",
+        json={
+            "input": "Hello world. This is sentence two.",
+            "stream": True,
+        },
+    )
     assert resp.status_code == 200
     assert "X-Audio-Sample-Rate" in resp.headers
     assert resp.headers["X-Audio-Sample-Rate"] == "24000"
@@ -2603,6 +2668,7 @@ def test_streaming_returns_pcm(client):
 CLI entrypoint for omnivoice-server.
 All flags mirror Settings fields. CLI values override env vars.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -2619,46 +2685,104 @@ def main() -> None:
 
     # Server
     parser.add_argument("--host", default=None, help="Bind host (env: OMNIVOICE_HOST)")
-    parser.add_argument("--port", type=int, default=None,
-                        help="Port (env: OMNIVOICE_PORT)")
-    parser.add_argument("--log-level", default=None,
-                        choices=["debug", "info", "warning", "error"],
-                        help="Log level (env: OMNIVOICE_LOG_LEVEL)")
+    parser.add_argument("--port", type=int, default=None, help="Port (env: OMNIVOICE_PORT)")
+    parser.add_argument(
+        "--log-level",
+        default=None,
+        choices=["debug", "info", "warning", "error"],
+        help="Log level (env: OMNIVOICE_LOG_LEVEL)",
+    )
 
     # Model
-    parser.add_argument("--model", default=None, dest="model_id",
-                        help="HuggingFace model ID or local path (env: OMNIVOICE_MODEL_ID)")
-    parser.add_argument("--device", default=None,
-                        choices=["auto", "cuda", "mps", "cpu"],
-                        help="Inference device (env: OMNIVOICE_DEVICE)")
-    parser.add_argument("--num-step", type=int, default=None, dest="num_step",
-                        help="Diffusion steps, 1–64 (env: OMNIVOICE_NUM_STEP)")
-    parser.add_argument("--guidance-scale", type=float, default=None, dest="guidance_scale",
-                        help="CFG scale, 0–10 (env: OMNIVOICE_GUIDANCE_SCALE)")
-    parser.add_argument("--denoise", action="store_true", default=None, dest="denoise",
-                        help="Enable denoising (env: OMNIVOICE_DENOISE)")
-    parser.add_argument("--no-denoise", action="store_false", dest="denoise",
-                        help="Disable denoising")
-    parser.add_argument("--t-shift", type=float, default=None, dest="t_shift",
-                        help="Noise schedule shift, 0–2 (env: OMNIVOICE_T_SHIFT)")
-    parser.add_argument("--position-temperature", type=float, default=None, dest="position_temperature",
-                        help="Voice diversity temperature, 0–10 (env: OMNIVOICE_POSITION_TEMPERATURE)")
-    parser.add_argument("--class-temperature", type=float, default=None, dest="class_temperature",
-                        help="Token sampling temperature, 0–2 (env: OMNIVOICE_CLASS_TEMPERATURE)")
+    parser.add_argument(
+        "--model",
+        default=None,
+        dest="model_id",
+        help="HuggingFace model ID or local path (env: OMNIVOICE_MODEL_ID)",
+    )
+    parser.add_argument(
+        "--device",
+        default=None,
+        choices=["auto", "cuda", "mps", "cpu"],
+        help="Inference device (env: OMNIVOICE_DEVICE)",
+    )
+    parser.add_argument(
+        "--num-step",
+        type=int,
+        default=None,
+        dest="num_step",
+        help="Diffusion steps, 1–64 (env: OMNIVOICE_NUM_STEP)",
+    )
+    parser.add_argument(
+        "--guidance-scale",
+        type=float,
+        default=None,
+        dest="guidance_scale",
+        help="CFG scale, 0–10 (env: OMNIVOICE_GUIDANCE_SCALE)",
+    )
+    parser.add_argument(
+        "--denoise",
+        action="store_true",
+        default=None,
+        dest="denoise",
+        help="Enable denoising (env: OMNIVOICE_DENOISE)",
+    )
+    parser.add_argument(
+        "--no-denoise", action="store_false", dest="denoise", help="Disable denoising"
+    )
+    parser.add_argument(
+        "--t-shift",
+        type=float,
+        default=None,
+        dest="t_shift",
+        help="Noise schedule shift, 0–2 (env: OMNIVOICE_T_SHIFT)",
+    )
+    parser.add_argument(
+        "--position-temperature",
+        type=float,
+        default=None,
+        dest="position_temperature",
+        help="Voice diversity temperature, 0–10 (env: OMNIVOICE_POSITION_TEMPERATURE)",
+    )
+    parser.add_argument(
+        "--class-temperature",
+        type=float,
+        default=None,
+        dest="class_temperature",
+        help="Token sampling temperature, 0–2 (env: OMNIVOICE_CLASS_TEMPERATURE)",
+    )
 
     # Inference
-    parser.add_argument("--max-concurrent", type=int, default=None, dest="max_concurrent",
-                        help="Max simultaneous inferences (env: OMNIVOICE_MAX_CONCURRENT)")
-    parser.add_argument("--timeout", type=int, default=None, dest="request_timeout_s",
-                        help="Request timeout in seconds (env: OMNIVOICE_REQUEST_TIMEOUT_S)")
+    parser.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=None,
+        dest="max_concurrent",
+        help="Max simultaneous inferences (env: OMNIVOICE_MAX_CONCURRENT)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=None,
+        dest="request_timeout_s",
+        help="Request timeout in seconds (env: OMNIVOICE_REQUEST_TIMEOUT_S)",
+    )
 
     # Storage
-    parser.add_argument("--profile-dir", default=None, dest="profile_dir",
-                        help="Voice profile directory (env: OMNIVOICE_PROFILE_DIR)")
+    parser.add_argument(
+        "--profile-dir",
+        default=None,
+        dest="profile_dir",
+        help="Voice profile directory (env: OMNIVOICE_PROFILE_DIR)",
+    )
 
     # Auth
-    parser.add_argument("--api-key", default=None, dest="api_key",
-                        help="Bearer token for auth. Empty = no auth (env: OMNIVOICE_API_KEY)")
+    parser.add_argument(
+        "--api-key",
+        default=None,
+        dest="api_key",
+        help="Bearer token for auth. Empty = no auth (env: OMNIVOICE_API_KEY)",
+    )
 
     args = parser.parse_args()
 
@@ -2666,6 +2790,7 @@ def main() -> None:
     overrides = {k: v for k, v in vars(args).items() if v is not None}
 
     from .config import Settings
+
     cfg = Settings(**overrides)
 
     # Configure logging
@@ -2685,7 +2810,7 @@ def main() -> None:
         host=cfg.host,
         port=cfg.port,
         log_level=cfg.log_level,
-        workers=1,          # MUST be 1: multi-process = multiple model copies in RAM
+        workers=1,  # MUST be 1: multi-process = multiple model copies in RAM
         loop="asyncio",
     )
 

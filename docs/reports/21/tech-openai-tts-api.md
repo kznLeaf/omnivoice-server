@@ -180,13 +180,13 @@ import openai
 
 client = openai.OpenAI(
     api_key="sk-...",
-    base_url="http://localhost:8880/v1"  # OmniVoice-server
+    base_url="http://localhost:8880/v1",  # OmniVoice-server
 )
 
 response = client.audio.speech.create(
     model="omnivoice",
     voice="ash",  # or "clone:profile_id"
-    input="Hello world"
+    input="Hello world",
 )
 ```
 
@@ -225,7 +225,7 @@ response = client.audio.speech.create(
     model="tts-1",
     voice="alloy",
     input="Hello",
-    stream=True  # If supported
+    stream=True,  # If supported
 )
 ```
 

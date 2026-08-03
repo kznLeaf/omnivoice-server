@@ -560,9 +560,7 @@ async def create_speech_clone(
         if response_format != "pcm":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Streaming only supports response_format='pcm', got '{response_format}'"
-                ),
+                detail=(f"Streaming only supports response_format='pcm', got '{response_format}'"),
             )
 
         async def clone_stream() -> AsyncIterator[bytes]:
