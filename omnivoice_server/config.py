@@ -7,14 +7,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import Literal, cast
 
 import platformdirs
+import torch
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-if TYPE_CHECKING:
-    import torch
 
 
 class Settings(BaseSettings):
@@ -202,13 +200,10 @@ class Settings(BaseSettings):
         return value
 
     @property
-    def torch_dtype(self) -> torch.dtype:
+    def torch_dtype(self) -> object:
         """Return appropriate torch dtype for device."""
-        import torch
-
-        if self.device in ("cuda", "mps"):
-            return torch.float16
-        return torch.float32
+        name = "float16" if self.device in ("cuda", "mps") else "float32"
+        return cast(object, getattr(torch, name))
 
     @property
     def torch_device_map(self) -> str:
