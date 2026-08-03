@@ -70,9 +70,7 @@ def voice_design():
     output_path = Path("output_design.wav")
     output_path.write_bytes(response.content)
     print(f"✓ Voice design saved to {output_path}")
-    print(
-        "  Note: Short aliases like 'british' are accepted but canonicalized to 'british accent'"
-    )
+    print("  Note: Short aliases like 'british' are accepted but canonicalized to 'british accent'")
 
 
 # ── Example 3: Voice cloning with profile ────────────────────────────────────
