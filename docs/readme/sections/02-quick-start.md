@@ -11,8 +11,8 @@ pip install torchcodec==0.11 torch==2.8.0 torchaudio==2.8.0 --index-url https://
 # NVIDIA GPU (CUDA) - recommended for production
 pip install torchcodec==0.11 torch==2.8.0+cu128 torchaudio==2.8.0+cu128 --index-url https://download.pytorch.org/whl/cu128
 
-# Apple Silicon (MPS) - currently broken, use CPU instead
-# See docs/verification/MPS_ISSUE.md for details
+# Apple Silicon (MPS) 
+pip install torch==2.8.0 torchaudio==2.8.0
 ```
 
 For other CUDA versions or more options, see the [official PyTorch installation guide](https://pytorch.org/get-started/locally/).
@@ -48,6 +48,18 @@ uv run omnivoice-server --host 0.0.0.0 --port 8880 --device cuda
 # With authentication
 export OMNIVOICE_API_KEY="your-secret-key"
 uv run omnivoice-server
+```
+
+For Apple Silion GPU:
+
+``` sh
+uv run omnivoice-server --device mps --num-step 32
+```
+
+CPU(~2x slower):
+
+```sh
+uv run omnivoice-server --device cpu --num-step 32
 ```
 
 **PyPI / global install** (Options 1–3):
