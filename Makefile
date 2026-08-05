@@ -1,4 +1,4 @@
-.PHONY: help install dev sync run test test-cov lint format type-check clean build publish docs docker-build docker-run release
+.PHONY: help install dev sync run test test-cov lint format type-check clean build publish docs docker-build docker-run release metal
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -15,6 +15,9 @@ sync: ## Sync dependencies from uv.lock
 
 run: ## Start the server locally
 	uv run omnivoice-server
+
+metal:
+	uv run omnivoice-server --device mps --num-step 32
 
 test: ## Run tests
 	uv run pytest tests/ -v
