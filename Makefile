@@ -14,7 +14,7 @@ sync: ## Sync dependencies from uv.lock
 	uv sync --extra dev
 
 run: ## Start the server locally
-	uv run omnivoice-server
+	uv run omnivoice-server --device auto
 
 metal:
 	uv run omnivoice-server --device mps --num-step 32
